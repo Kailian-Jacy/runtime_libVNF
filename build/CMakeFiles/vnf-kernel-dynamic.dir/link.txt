@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -Wno-deprecated-declarations -Wno-pointer-arith -lnuma -lrt -DLIBVNF_STACK=1 -g -ljsoncpp -O0 -g  -shared -Wl,-soname,libvnf-kernel-dynamic.so -o libvnf-kernel-dynamic.so CMakeFiles/vnf-kernel-dynamic.dir/src/datastore/dspackethandler.cpp.o CMakeFiles/vnf-kernel-dynamic.dir/src/datastore/utils.cpp.o CMakeFiles/vnf-kernel-dynamic.dir/src/kernel/core.cpp.o 
