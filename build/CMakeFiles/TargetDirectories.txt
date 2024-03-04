@@ -1,0 +1,7 @@
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/install/strip.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/edit_cache.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/vnf-kernel-dynamic.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/rebuild_cache.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/list_install_components.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/install/local.dir
+/home/kailian/DB4NFV/runtime/build/CMakeFiles/install.dir
