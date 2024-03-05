@@ -712,15 +712,15 @@ public:
     // What is a state scope?
     StateAccess(
 		const std::string name,
-		const int key,
-		const int field,
+		const vector<string> reads,
+		const string write,
 		// const std::vector<std::string> types,
 		ConsistencyRequirement cr,
 		TxnCallBackHandler txnHandler,
 		TxnCallBackHandler errTxnHandler,
 		PostTxnHandler postHandler,
 		RWType rw)
-        : field_(field), key_(key), cr_(cr), name_(name),
+        : write(write), reads(reads), cr_(cr), name_(name),
         // : fields_(fields), types_(types), cr_(cr),
           txnHandler_(txnHandler), rw_(rw), errorTxnHandler_(errTxnHandler),
           postTxnHandler_(postHandler) {}
@@ -729,9 +729,9 @@ public:
 	{
 		json json;
 		json["stateName"] = name_;
-		json["type"] = (rw_ == 1) ? "read" : "write";
-		json["fieldTableIndex"] = field_;
-		json["keyIndexInEvent"] = key_;
+		json["has_write"] = rw_ == WRITE;
+		json["reads"] = reads;
+		json["write"] = write;
 		json["consistency_requirement"] = "";
 		return json;
 	}
@@ -739,8 +739,8 @@ public:
 	const enum RWType rw_;	
 	const std::string name_;	
 
-    const int key_;
-    const int field_;
+	const vector<string> reads;
+	const string write;
     const ConsistencyRequirement cr_;
 
 	// The binded transaction handler for this State Access.

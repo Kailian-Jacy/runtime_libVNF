@@ -1973,7 +1973,7 @@ rust::String Init_SFC(int32_t argc, rust::Vec<rust::String> argv){
 		{
 			free(argvC[i]);
 		}
-		delete[] argvC;
+		// delete[] argvC;
 
         // Fix the backlink.
         int reqObjStart = 0;

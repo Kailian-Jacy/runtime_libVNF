@@ -1,5 +1,5 @@
-// #include <core.hpp>
-#include <libvnf/core.hpp>
+#include <core.hpp>
+// #include <libvnf/core.hpp>
 #include <utility>
 #include <unordered_map>
 #include <cassert>
@@ -118,8 +118,11 @@ auto SLApp = DB4NFV::App{
             {
                 StateAccess{
                     "deposit_sa",
-                    0, 1, None, 
-                    deposit_sa_udf, nullptr, nullptr, WRITE
+                    {"balance"}, // read original balance.
+                    "balance",  // Write new balance.
+                    None, 
+                    deposit_sa_udf, 
+                    nullptr, nullptr, WRITE
                 }
             }
         },
@@ -127,14 +130,17 @@ auto SLApp = DB4NFV::App{
             "transfer_transaction",
             {
                 StateAccess{
-                    // TODO. Add definition of field to write result.
                     "src_transfer_sa",
-                    0, 1, None, 
+                    {"balance"}, // read original balance.
+                    "balance",  // Write new balance.
+                    None, 
                     src_transfer_sa_udf, nullptr, nullptr, WRITE
                 },
                 StateAccess{
                     "dst_transfer_sa",
-                    1, 1, None,
+                    {"balance"}, // read original balance.
+                    "balance",  // Write new balance.
+                    None,
                     dest_transfer_sa_udf, nullptr, nullptr, WRITE
                 }
             }
