@@ -766,7 +766,7 @@ public:
 	const App* app;
 	const std::string name;
 	int txnIndex;
-	void Trigger(vnf::ConnId& connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx) const;
+	void Trigger(vnf::ConnId& connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx ) const;
 
 	json toJson() const
 	{
@@ -783,6 +783,7 @@ public:
 		return json;
 	}
 };
+
 
 class App{
 friend SFC;
@@ -885,19 +886,18 @@ struct TxnMessage
 	uint64_t txn_req_id;
 	std::vector<std::vector<size_t>> reads_idx;
 	std::vector<size_t> write_idx;
-
 	// Method to serialize the struct to JSON
-    json toJson() const {
-        json j;
-        j["type_idx"] = type_idx;
-        j["ts"] = ts;
-        j["txn_req_id"] = txn_req_id;
-        j["reads_idx"] = reads_idx;
-        j["write_idx"] = write_idx;
-        return j;
-    }
+	json toJson() const
+	{
+		json j;
+		j["type_idx"] = type_idx;
+		j["ts"] = ts;
+		j["txn_req_id"] = txn_req_id;
+		j["reads_idx"] = reads_idx;
+		j["write_idx"] = write_idx;
+		return j;
+	}
 };
-
 
 // Main loop for traversal of the apps. Wrapper from libVNF Callback Format to Our disposal Format.
 void _AppsDisposalAccept(vnf::ConnId& connId, int reqObjId, void * requestObject, char * packet, int packetLen, int errorCode, int streamNum);

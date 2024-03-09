@@ -1859,7 +1859,8 @@ void __request(ConnId& connId, TxnMessage & msg)
     // auto msg = env->NewByteArray(len);
     // assert(msg != NULL);
     // env->SetByteArrayRegion(msg, 0, len, data);
-    rust::String ret = rust::String(msg.toJson().dump());
+    json j = msg.toJson();
+    rust::String ret = rust::String(string(j.dump()));
 
     // jclass cls = env->FindClass("intellistream/morphstream/api/input/InputSource");
     // assert(cls != NULL);
@@ -2032,19 +2033,19 @@ void VNFThread(int32_t c, rust::Vec<rust::String> v){
 
 // The callback handling entrance.
     // Save the value in ctx.
-rust::String execute_sa_udf(uint64_t txnReqId_jni, int saIdx, rust::Vec<uint8_t> value, int param_count){
-    uint64_t txnReqId = 0;
-    // reverse for switching endianness.
-    uint8_t *buf = reinterpret_cast<uint8_t *>(&txnReqId);
-    uint8_t *buf_jni = reinterpret_cast<uint8_t *>(&txnReqId_jni);
-    for (int i = 0; i < sizeof(uint64_t); i += 1)
-    {
-        buf[sizeof(uint64_t) - i - 1] = buf_jni[i];
-        }
-        assert((txnReqId & 0xffffff0000000000) == 0);
+rust::Vec<uint8_t> execute_sa_udf(uint64_t txnReqId, int saIdx, rust::Vec<uint8_t> value, int param_count){
+    // uint64_t txnReqId = 0;
+    // // reverse for switching endianness.
+    // uint8_t *buf = reinterpret_cast<uint8_t *>(&txnReqId);
+    // uint8_t *buf_jni = reinterpret_cast<uint8_t *>(&txnReqId_jni);
+    // for (int i = 0; i < sizeof(uint64_t); i += 1)
+    // {
+    //     buf[sizeof(uint64_t) - i - 1] = buf_jni[i];
+    // }
+    assert((txnReqId & 0xffffff0000000000) == 0);
 
-        int coreId = COREID(txnReqId);
-        auto ctx = perCoreStates[coreId].packetNumberContextMap.at(PACKETID(txnReqId));
+    int coreId = COREID(txnReqId);
+    auto ctx = perCoreStates[coreId].packetNumberContextMap.at(PACKETID(txnReqId));
 
 #ifdef DEBUG
     perCoreStates[coreId].monitor.update_latency(1, ctx->_full_ts());
@@ -2074,7 +2075,7 @@ rust::String execute_sa_udf(uint64_t txnReqId_jni, int saIdx, rust::Vec<uint8_t>
     assert(ctx->AppIdx() != -1);
     // Call actual sa udf.
 	STATE_TYPE res = (*globals.sfc.SFC_chain[ctx->AppIdx()]->SAs[saIdx]->txnHandler_)(conn, *ctx, (char *)(v.data()), length);
-	int abortion = ( ctx->ReturnValue())? 1: 0;
+	uint32_t abortion = ( ctx->ReturnValue())? 1: 0;
 
     // delete tmp;
 
@@ -2084,36 +2085,42 @@ rust::String execute_sa_udf(uint64_t txnReqId_jni, int saIdx, rust::Vec<uint8_t>
     // }
 
     // auto _result = env->NewByteArray(sizeof(int) + STATE_TYPE_SIZE);
-    auto result = new char[sizeof(int) + STATE_TYPE_SIZE];
+    auto result = new char[sizeof(uint32_t) + STATE_TYPE_SIZE + 1];
     // Set Abortion.
-    memcpy(result, reinterpret_cast<char *>(&abortion), sizeof(int));
+    memcpy(result, reinterpret_cast<char *>(&abortion), sizeof(uint32_t));
 	// env->SetByteArrayRegion(_result, static_cast<jsize>(0), static_cast<jsize>(sizeof(int)), reinterpret_cast<jbyte *>(&abortion));
     // Set result.
-    memcpy(result + sizeof(int), reinterpret_cast<char *>(&res), sizeof(STATE_TYPE_SIZE));
+    memcpy(result + sizeof(uint32_t), reinterpret_cast<char *>(&res), sizeof(STATE_TYPE_SIZE));
     // env->SetByteArrayRegion(_result, static_cast<jsize>(sizeof(int)), static_cast<jsize>(STATE_TYPE_SIZE), reinterpret_cast<jbyte *>(&res));
+
+    auto ret = rust::Vec<uint8_t>();
+
+    for (int idx = 0; idx < sizeof(result); idx++ ) {
+        ret.push_back(result[idx]);
+    }
 
 #ifdef DEBUG
                     perCoreStates[coreId].monitor.update_latency(2, ctx->_full_ts());
 #endif
 
     // How to release write back value? We don't need to release. They are managed.
-    return rust::String(string(result));
-  }
+    return ret;
+}
 
 // Report done.
 // JNIEXPORT jint 
 // JNICALL Java_intellistream_morphstream_util_libVNFFrontend_NativeInterface__1_1txn_1finished
 //   (JNIEnv * env, jclass cls, jlong txnReqId_jni){
-  int32_t txn_finished(uint64_t txnReqId_jni){
+  int32_t txn_finished(uint64_t txnReqId){
       // Save the value in ctx.
-    uint64_t txnReqId = 0;
-    // reverse for switching endianness.
-    uint8_t *buf = reinterpret_cast<uint8_t *>(&txnReqId);
-    uint8_t *buf_jni = reinterpret_cast<uint8_t *>(&txnReqId_jni);
-    for (int i = 0; i < sizeof(uint64_t); i += 1)
-    {
-        buf[sizeof(uint64_t) - i - 1] = buf_jni[i];
-    }
+    // uint64_t txnReqId = 0;
+    // // reverse for switching endianness.
+    // uint8_t *buf = reinterpret_cast<uint8_t *>(&txnReqId);
+    // uint8_t *buf_jni = reinterpret_cast<uint8_t *>(&txnReqId_jni);
+    // for (int i = 0; i < sizeof(uint64_t); i += 1)
+    // {
+    //     buf[sizeof(uint64_t) - i - 1] = buf_jni[i];
+    // }
     assert((txnReqId & 0xffffff0000000000) == 0);
 
     int coreId = COREID(txnReqId);
@@ -2349,7 +2356,7 @@ uint64_t Context::_full_ts()
     return ts;
 }
 
-void DB4NFV::Transaction::Trigger(vnf::ConnId &connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx) const
+void DB4NFV::Transaction::Trigger(vnf::ConnId& connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx) const
 { 
     // Reset when transaction handle done.
     ctx._set_wait_txn_callback();
@@ -2366,7 +2373,7 @@ void DB4NFV::Transaction::Trigger(vnf::ConnId &connId, Context &ctx, vector<vect
     // Register call back parameters in the context.
     perCoreStates[connId.coreId].packetNumberContextMap[ctx._ts_low_32b()] = &ctx;
 
-    auto msg = TxnMessage{
+    TxnMessage msg = TxnMessage{
         type_idx: this->txnIndex,
         ts: ctx._full_ts(),
         txn_req_id: TXNREQID(connId.coreId, ctx._ts_low_32b()),
