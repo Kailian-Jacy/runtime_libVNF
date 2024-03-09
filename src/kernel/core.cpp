@@ -1823,43 +1823,43 @@ void DB4NFV::SFC::Add(App& last, App& app){
 }
 
 // The entry for sending txn execution request to txnEngine.
-void __request(uint64_t ts, uint64_t txnReqId, const char *key, int flag, ConnId& connId)
+void __request(ConnId& connId, TxnMessage & msg)
 {
-    // FIXME. To be optimized. Try to Cache JNIEnv in one persistent VNF thread.
-    int len = sizeof(uint64_t) * 2 + strlen(key) + sizeof(int) * 2 + 4; // four separators
+    // // FIXME. To be optimized. Try to Cache JNIEnv in one persistent VNF thread.
+    // int len = sizeof(uint64_t) * 2 + strlen(key) + sizeof(int) * 2 + 4; // four separators
 
-    // Use SetByteArrayRegion to copy data into the byte array
-    char data[len];
-    int offset = 0;
+    // // Use SetByteArrayRegion to copy data into the byte array
+    // char data[len];
+    // int offset = 0;
 
-    std::memcpy(data + offset, &ts, sizeof(uint64_t));
-    offset += sizeof(uint64_t);
-    data[offset++] = char(';');
+    // std::memcpy(data + offset, &ts, sizeof(uint64_t));
+    // offset += sizeof(uint64_t);
+    // data[offset++] = char(';');
 
-    std::memcpy(data + offset, &txnReqId, sizeof(uint64_t));
-    assert((txnReqId & 0xfffffff000000000) == 0);
-    offset += sizeof(uint64_t);
-    data[offset++] = ';';
+    // std::memcpy(data + offset, &txnReqId, sizeof(uint64_t));
+    // assert((txnReqId & 0xfffffff000000000) == 0);
+    // offset += sizeof(uint64_t);
+    // data[offset++] = ';';
 
-    std::memcpy(data + offset, key, strlen(key));
-    offset += strlen(key);
-    data[offset++] = ';';
+    // std::memcpy(data + offset, key, strlen(key));
+    // offset += strlen(key);
+    // data[offset++] = ';';
 
-    std::memcpy(data + offset, &flag, sizeof(int));
-    offset += sizeof(int);
-    data[offset++] = ';';
+    // std::memcpy(data + offset, &flag, sizeof(int));
+    // offset += sizeof(int);
+    // data[offset++] = ';';
 
-    // Todo. remove this field.
-    int isAbort_i = 0;
-    std::memcpy(data + offset, &isAbort_i, sizeof(int));
-    offset += sizeof(int);
-    data[offset] = '\0';
+    // // Todo. remove this field.
+    // int isAbort_i = 0;
+    // std::memcpy(data + offset, &isAbort_i, sizeof(int));
+    // offset += sizeof(int);
+    // data[offset] = '\0';
 
     // Copy the data into the msg byte array
     // auto msg = env->NewByteArray(len);
     // assert(msg != NULL);
     // env->SetByteArrayRegion(msg, 0, len, data);
-    rust::String ret = rust::String(string(data));
+    rust::String ret = rust::String(msg.toJson().dump());
 
     // jclass cls = env->FindClass("intellistream/morphstream/api/input/InputSource");
     // assert(cls != NULL);
@@ -2349,7 +2349,7 @@ uint64_t Context::_full_ts()
     return ts;
 }
 
-void DB4NFV::Transaction::Trigger(vnf::ConnId& connId, Context &ctx, const char *key, bool isAbort ) const
+void DB4NFV::Transaction::Trigger(vnf::ConnId &connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx) const
 { 
     // Reset when transaction handle done.
     ctx._set_wait_txn_callback();
@@ -2366,9 +2366,17 @@ void DB4NFV::Transaction::Trigger(vnf::ConnId& connId, Context &ctx, const char 
     // Register call back parameters in the context.
     perCoreStates[connId.coreId].packetNumberContextMap[ctx._ts_low_32b()] = &ctx;
 
+    auto msg = TxnMessage{
+        type_idx: this->txnIndex,
+        ts: ctx._full_ts(),
+        txn_req_id: TXNREQID(connId.coreId, ctx._ts_low_32b()),
+        reads_idx: reads_idx,
+        write_idx: write_idx,
+    };
+
     // JNIEnv * env; 
     // GetJniEnv(&env);
-	__request(ctx._full_ts(), TXNREQID(connId.coreId, ctx._ts_low_32b()), key, this->txnIndex, connId);
+	__request(connId, msg);
 }
 
 // // Get JVM and jenv related. FIXME. Optimize.

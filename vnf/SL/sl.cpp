@@ -61,52 +61,81 @@ void sl_app_accept_packet_handler(vnf::ConnId& connId, Context &ctx){
     return;
 };
 
-void sl_app_read_packet_handler(vnf::ConnId& connId, Context &ctx){
-    spdlog::debug("[DEBUG] New Packet accepted");
-    auto content = string(ctx.packet());
+struct RequestParser {
+    std::string type;
+    size_t source;
+    size_t destionation;
+};
+
+RequestParser * Parse(const std::string &content, BState* threadLocal ){
+    assert(threadLocal != NULL);
 
     int comma_pos[3] = {0,0,0};
     int com = 0;
+    int colon_pos = -1;
     for (int i = 0; i < content.length() && com < 3; i++)
     {
         if (content[i] == ','){
             comma_pos[com] = i;
             com++;
-        } 
+        } else if (content[i] == ':') {
+            colon_pos = i;
+        }
     }
 
-    // std::cout << content.substr(0, comma_pos[0]) << std::endl;
-    auto key = content.substr(0, comma_pos[0]).c_str();
-    // std::cout << "key" << key << std::endl;
+    auto ret = new RequestParser;
 
-    // std::cout << content.substr(comma_pos[0] + 1, comma_pos[1] - comma_pos[0] - 1) << std::endl;
-    auto threadLocal = reinterpret_cast<BState *>(ctx.reqObj());
-    assert(threadLocal != NULL);
+    auto key = content.substr(0, comma_pos[0]);
+    if (colon_pos == -1){
+        ret->source = atoi(key.c_str());
+    } else {
+        ret->source = atoi(key.substr(0, colon_pos).c_str());
+        ret->destionation = atoi(key.substr(colon_pos + 1).c_str());
+    }
+
     threadLocal->amount = atoi(content.substr(comma_pos[0] + 1, comma_pos[1] - comma_pos[0] - 1).c_str());
-    // std::cout << "amount" << threadLocal->amount << std::endl;
-
-    // std::cout << content.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1) << std::endl;
-    std::string txn = content.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1);
-    // int res = (content.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1) == string("transfer")) || 
-    //     (content.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1) == string("deposit")) ? 1 : 0;
-
-    // std::cout << content.substr(comma_pos[2] + 1) << std::endl;
+    ret->type = content.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1);
     threadLocal->abortion = content.substr(comma_pos[2] + 1) == "false"? true: false;
-    // std::cout << "abortion" << threadLocal->abortion << std::endl;
 
-    if (txn == string("transfer")){
+    return ret;
+}
+
+void sl_app_read_packet_handler(vnf::ConnId& connId, Context &ctx){
+    spdlog::debug("[DEBUG] New Packet accepted");
+    auto content = string(ctx.packet());
+    auto threadLocal = reinterpret_cast<BState *>(ctx.reqObj());
+
+    auto msg = Parse(content, threadLocal);
+
+    if (msg->type == string("transfer")){
         // Set next app here if needed. Before Transaction triggered. Or you can place them in sa handler.
         // ctx.NextApp(1, vnf::READ);
-        ctx.Transaction(1).Trigger(connId, ctx, content.substr(0, comma_pos[0]).c_str() , false);
-    } else if (txn == string("deposit")){
+        vector<vector<size_t>> reads_idx = {
+            {msg -> source},
+            {msg -> destionation},
+        };
+        vector<size_t> write_idx = {
+            msg -> source,
+            msg -> destionation,
+        };
+        ctx.Transaction(1)
+            .Trigger(connId, ctx, reads_idx, write_idx);
+    } else if (msg->type == string("deposit")){
         // Set next app here if needed. Before Transaction triggered. Or you can place them in sa handler.
         // ctx.NextApp(1, vnf::READ);
-        ctx.Transaction(0).Trigger(connId, ctx, content.substr(0, comma_pos[0]).c_str(), false);
+        vector<vector<size_t>> reads_idx = {
+            {msg -> source},
+        };
+        vector<size_t> write_idx = {
+            msg -> source,
+        };
+        ctx.Transaction(0).Trigger(connId, ctx, reads_idx, write_idx);
     } else {
         std::cout << boost::stacktrace::stacktrace();
-        std::cout << "Invalid txn name: " << txn << std::endl;
+        std::cout << "Invalid txn name: " << msg->type << std::endl;
         assert(false);
     }
+    delete msg;
     return;
 };
 
@@ -158,7 +187,7 @@ int VNFMain(int argc, char *argv[]){
         // Use defaut.
         perror("VNF Config not provided.");
         // assert(false);
-        path = "/home/kailian/MorphStream/libVNF/vnf/SL/config.csv";
+        path = "/home/kailian/DB4NFV/runtime/vnf/SL/config.csv";
     } else {
         path = std::string(argv[1]);
     }
