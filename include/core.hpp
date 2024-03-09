@@ -712,15 +712,15 @@ public:
     // What is a state scope?
     StateAccess(
 		const std::string name,
-		const int key,
-		const int field,
+		const vector<string> reads,
+		const string write,
 		// const std::vector<std::string> types,
 		ConsistencyRequirement cr,
 		TxnCallBackHandler txnHandler,
 		TxnCallBackHandler errTxnHandler,
 		PostTxnHandler postHandler,
 		RWType rw)
-        : field_(field), key_(key), cr_(cr), name_(name),
+        : write(write), reads(reads), cr_(cr), name_(name),
         // : fields_(fields), types_(types), cr_(cr),
           txnHandler_(txnHandler), rw_(rw), errorTxnHandler_(errTxnHandler),
           postTxnHandler_(postHandler) {}
@@ -729,9 +729,9 @@ public:
 	{
 		json json;
 		json["stateName"] = name_;
-		json["type"] = (rw_ == 1) ? "read" : "write";
-		json["fieldTableIndex"] = field_;
-		json["keyIndexInEvent"] = key_;
+		json["has_write"] = rw_ == WRITE;
+		json["reads"] = reads;
+		json["write"] = write;
 		json["consistency_requirement"] = "";
 		return json;
 	}
@@ -739,8 +739,8 @@ public:
 	const enum RWType rw_;	
 	const std::string name_;	
 
-    const int key_;
-    const int field_;
+	const vector<string> reads;
+	const string write;
     const ConsistencyRequirement cr_;
 
 	// The binded transaction handler for this State Access.
@@ -766,7 +766,7 @@ public:
 	const App* app;
 	const std::string name;
 	int txnIndex;
-	void Trigger(vnf::ConnId& connId, Context &ctx, const char *key, bool isAbort ) const;
+	void Trigger(vnf::ConnId& connId, Context &ctx, vector<vector<size_t>> reads_idx, vector<size_t> write_idx) const;
 
 	json toJson() const
 	{
@@ -783,7 +783,6 @@ public:
 		return json;
 	}
 };
-
 
 class App{
 friend SFC;
@@ -878,6 +877,27 @@ public:
     std::vector<int> objSizesStarting;
 };
 }
+
+struct TxnMessage
+{
+	uint16_t type_idx;
+	uint64_t ts;
+	uint64_t txn_req_id;
+	std::vector<std::vector<size_t>> reads_idx;
+	std::vector<size_t> write_idx;
+
+	// Method to serialize the struct to JSON
+    json toJson() const {
+        json j;
+        j["type_idx"] = type_idx;
+        j["ts"] = ts;
+        j["txn_req_id"] = txn_req_id;
+        j["reads_idx"] = reads_idx;
+        j["write_idx"] = write_idx;
+        return j;
+    }
+};
+
 
 // Main loop for traversal of the apps. Wrapper from libVNF Callback Format to Our disposal Format.
 void _AppsDisposalAccept(vnf::ConnId& connId, int reqObjId, void * requestObject, char * packet, int packetLen, int errorCode, int streamNum);
