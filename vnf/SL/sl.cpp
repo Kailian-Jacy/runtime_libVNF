@@ -96,7 +96,7 @@ request_message *parse_request(const std::string& msg_str, BState * threadLocal)
     assert(threadLocal != NULL);
     threadLocal->amount = atoi(msg_str.substr(comma_pos[0] + 1, comma_pos[1] - comma_pos[0] - 1).c_str());
     ret->txn = msg_str.substr(comma_pos[1] + 1, comma_pos[2] - comma_pos[1] - 1);
-    threadLocal->abortion = msg_str.substr(comma_pos[2] + 1) == "false"? true: false;
+    threadLocal->abortion = msg_str.substr(comma_pos[2] + 1) == "false"? false: true;
 
     return ret;
 }
