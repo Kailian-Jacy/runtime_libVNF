@@ -21,7 +21,14 @@ int pinThreadToCore(int core_id) {
    CPU_SET(core_id, &cpuset);
 
    pthread_t currentThread = pthread_self();
-   return pthread_setaffinity_np(currentThread, sizeof(cpu_set_t), &cpuset);
+
+   int ret = pthread_setaffinity_np(currentThread, sizeof(cpu_set_t), &cpuset);
+
+   // Get CPU affinity for the current thread
+   int cpu = sched_getcpu();
+   std::cout << "VNF thread " << core_id << " bind to CPU core " << cpu << std::endl;
+
+   return ret;
 }
 
 int vnf::initLibvnf(int maxCores, int bufferSize, string dataStoreIPOrPath, vector<int> dataStorePortsOrFile, int dataStoreThreshold,
@@ -149,7 +156,7 @@ int createClientToDS(int coreId, string remoteIP, int remotePort, enum DataLocat
 void *serverThread(void *args) {
     struct ServerPThreadArgument argument = *((struct ServerPThreadArgument *) args);
     int coreId = argument.coreId;
-    pinThreadToCore(coreId);
+    pinThreadToCore(coreId + 1);
     spdlog::info("Server thread started on core {}", coreId);
 
     // memory pool initialization for request objects
@@ -772,7 +779,7 @@ void sigINTHandler(int signalCode) {
 void *monitorThread(void *args) {
     struct ServerPThreadArgument argument = *((struct ServerPThreadArgument *) args);
     int coreId = argument.coreId;
-    pinThreadToCore(coreId);
+    pinThreadToCore(coreId + 1);
     spdlog::info("Monitor thread started on core {}", coreId);
 
     while(true) {
